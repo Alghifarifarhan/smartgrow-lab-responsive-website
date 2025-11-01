@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Panel - Smart Grow Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/png" href="assets/img/your-icon.png" />
+    <link href="./output.css" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        font-family: "Inter", sans-serif;
+      }
+      .form-section {
+        transition: all 0.3s ease-in-out;
+      }
+      .form-section:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1),
+          0 4px 6px -4px rgb(0 0 0 / 0.1);
+      }
+      .modal-backdrop {
+        transition: opacity 0.3s ease-in-out;
+      }
+      .modal-content {
+        transition: transform 0.3s ease-in-out;
+      }
+      #go-to-top {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 100;
+        background-color: #166b19;
+        color: white;
+        border: none;
+        border-radius: 9999px;
+        padding: 1rem;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.3s;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      #go-to-top:hover {
+        background-color: #45a049;
+      }
+      .preview-container {
+        margin-top: 0.5rem;
+        width: 12rem; /* 192px */
+        min-height: 8rem; /* 128px */
+        border-radius: 0.375rem;
+        overflow: hidden;
+        background-color: #f3f4f6;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        color: #6b7280;
+        border: 1px solid #d1d5db;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-50">
+    <div
+      id="loader"
+      class="fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50"
+    >
+      <div
+        class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-600"
+      ></div>
+    </div>
+
+    <nav class="bg-white shadow-md sticky top-0 z-40">
+      <div
+        class="container mx-auto px-4 sm:px-6 py-3 flex justify-between items-center"
+      >
+        <h1 class="text-lg sm:text-xl font-bold text-gray-800">
+          Smart Grow Lab - Admin
+        </h1>
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+          <button
+            id="change-password-btn"
+            class="px-3 sm:px-4 py-2 text-sm sm:text-base font-semibold text-white bg-gray-600 rounded-md hover:bg-gray-700 transition-colors"
+          >
+            Ubah Password
+          </button>
+          <button
+            id="logout-button"
+            class="px-3 sm:px-4 py-2 text-sm sm:text-base font-semibold text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
+          >
+            Logout
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <main class="container mx-auto p-4 sm:p-6 space-y-8">
+      <div
+        id="hero-section"
+        class="bg-white p-6 rounded-lg shadow form-section"
+      >
+        <h2 class="text-xl font-bold mb-4 border-b pb-2">
+          Halaman Utama (Hero)
+        </h2>
+        <form id="hero-form" class="space-y-4">
+          <div>
+            <label
+              for="hero-title"
+              class="block text-sm font-medium text-gray-700"
+              >Judul (gunakan &lt;br/&gt; untuk baris baru)</label
+            >
+            <input
+              type="text"
+              id="hero-title"
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2"
+              placeholder="Contoh: Driving Agricultural Progress.."
+            />
+          </div>
+          <div>
+            <label
+              for="hero-description"
+              class="block text-sm font-medium text-gray-700"
+              >Deskripsi</label
+            >
+            <textarea
+              id="hero-description"
+              rows="3"
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2"
+              placeholder="Contoh: Integrated research and innovation.."
+            ></textarea>
+          </div>
+          <button
+            type="submit"
+            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+          >
+            Simpan Perubahan Hero
+          </button>
+        </form>
+      </div>
+
+      <div
+        id="stats-section"
+        class="bg-white p-6 rounded-lg shadow form-section"
+      >
+        <h2 class="text-xl font-bold mb-4 border-b pb-2">Statistik Awal</h2>
+        <form id="stats-form" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label class="block text-sm font-medium">Partners & Clients</label
+            ><input
+              type="text"
+              id="stat-partners"
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2"
+              placeholder="Contoh: 10+"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium">Total Project</label
+            ><input
+              type="text"
+              id="stat-projects"
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2"
+              placeholder="Contoh: 10+"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium">Project Increase</label
+            ><input
+              type="number"
+              id="stat-increase"
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2"
+              placeholder="Contoh: 5"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium">Laboratory Members</label
+            ><input
+              type="text"
+              id="stat-members"
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2"
+              placeholder="Contoh: 5+"
+            />
+          </div>
+          <div class="md:col-span-4">
+            <button
+              type="submit"
+              class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            >
+              Simpan Statistik
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div
+        id="research-section"
+        class="bg-white p-6 rounded-lg shadow form-section"
+      >
+        <h2 class="text-xl font-bold mb-4 border-b pb-2">Research Interests</h2>
+        <form id="research-form" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium">Judul Interest</label
+            ><input
+              type="text"
+              id="research-title"
+              required
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2"
+              placeholder="Contoh: Quantum & Information Security"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium"
+              >Link Ikon (Font Awesome Class)</label
+            ><input
+              type="text"
+              id="research-icon"
+              required
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2"
+              placeholder="Contoh: fab fa-pagelines"
+            />
+          </div>
+          <button
+            type="submit"
+            class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+          >
+            Tambah Interest
+          </button>
+        </form>
+        <div id="research-list" class="mt-6 space-y-2"></div>
+      </div>
+
+      <div
+        id="news-section"
+        class="bg-white p-6 rounded-lg shadow form-section"
+      >
+        <h2 class="text-xl font-bold mb-4 border-b pb-2">News & Events</h2>
+        <form id="news-form" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium">Judul Berita</label
+            ><input
+              type="text"
+              id="news-title"
+              required
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2"
+              placeholder="Contoh: Budidaya Aquaponik di Panyileukan"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium">Tanggal</label
+            ><input
+              type="text"
+              id="news-date"
+              required
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2"
+              placeholder="Contoh: Oktober 2024"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium"
+              >Deskripsi Singkat (Tampil di Halaman Utama)</label
+            ><textarea
+              id="news-summary"
+              rows="3"
+              required
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2"
+              placeholder="Contoh: SiMonA (Aquaponics Monitoring System)"
+            ></textarea>
+          </div>
+          <div>
+            <label class="block text-sm font-medium"
+              >Deskripsi Lengkap (HTML didukung)</label
+            ><textarea
+              id="news-content"
+              rows="5"
+              required
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2"
+              placeholder="Contoh: Ini adalah deskripsi lengkap dari berita tersebut.."
+            ></textarea>
+          </div>
+          <div>
+            <label
+              for="news-image-link"
+              class="block text-sm font-medium text-gray-700"
+              >Link Google Drive Gambar Berita</label
+            >
+            <input
+              type="url"
+              id="news-image-link"
+              required
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2"
+              placeholder="Tempelkan link 'share' dari Google Drive di sini"
+            />
+            <div id="news-image-preview" class="preview-container">
+              Preview Gambar
+            </div>
+          </div>
+          <button
+            type="submit"
+            class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+          >
+            Tambah Berita
+          </button>
+        </form>
+        <div id="news-list" class="mt-6 space-y-2"></div>
+      </div>
+
+      <div
+        id="project-section"
+        class="bg-white p-6 rounded-lg shadow form-section"
+      >
+        <h2 class="text-xl font-bold mb-4 border-b pb-2">Projects</h2>
+        <form id="project-form" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium">Judul Proyek</label
+            ><input
+              type="text"
+              id="project-title"
+              required
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2"
+              placeholder="Contoh: HYCOSMARTS"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium">Deskripsi Lengkap</label
+            ><textarea
+              id="project-description"
+              rows="4"
+              required
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2"
+              placeholder="Contoh: Smart Container Farming is a solution for farming.."
+            ></textarea>
+          </div>
+          <div>
+            <label class="block text-sm font-medium"
+              >Link Proyek (Opsional)</label
+            ><input
+              type="url"
+              id="project-link"
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2"
+              placeholder="https://example.com/project-detail"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium"
+              >Link Google Drive Gambar Proyek (satu link per baris)</label
+            ><textarea
+              id="project-images-links"
+              required
+              rows="5"
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2"
+              placeholder="Tempelkan setiap link 'share' dari Google Drive di baris baru"
+            ></textarea>
+            <div
+              id="project-images-preview"
+              class="mt-2 flex flex-wrap gap-2"
+            ></div>
+          </div>
+          <button
+            type="submit"
+            class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+          >
+            Tambah Proyek
+          </button>
+        </form>
+        <div id="project-list" class="mt-6 space-y-2"></div>
+      </div>
+
+      <div
+        id="team-section"
+        class="bg-white p-6 rounded-lg shadow form-section"
+      >
+        <h2 class="text-xl font-bold mb-4 border-b pb-2">Our Team</h2>
+        <form id="team-form" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium">Nama Anggota</label
+            ><input
+              type="text"
+              id="team-name"
+              required
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2"
+              placeholder="Hanifah Zanayyah"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium"
+              >Peran (Mentor/Member)</label
+            ><select
+              id="team-role"
+              required
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2"
+            >
+              <option value="Mentor">Mentor</option>
+              <option value="Member">Member</option>
+            </select>
+          </div>
+          <div>
+            <label
+              for="team-image-link"
+              class="block text-sm font-medium text-gray-700"
+              >Link Google Drive Foto Anggota</label
+            >
+            <input
+              type="url"
+              id="team-image-link"
+              required
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2"
+              placeholder="Tempelkan link 'share' dari Google Drive di sini"
+            />
+            <div id="team-image-preview" class="preview-container">
+              Preview Foto
+            </div>
+          </div>
+          <button
+            type="submit"
+            class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+          >
+            Tambah Anggota Tim
+          </button>
+        </form>
+        <div id="team-list" class="mt-6 space-y-2"></div>
+      </div>
+
+      <div
+        id="footer-section"
+        class="bg-white p-6 rounded-lg shadow form-section"
+      >
+        <h2 class="text-xl font-bold mb-4 border-b pb-2">Footer</h2>
+        <form id="footer-form" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium">Office Address</label
+            ><textarea
+              id="footer-address"
+              rows="3"
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2"
+              placeholder="Contoh: BTP, Telkom University.."
+            ></textarea>
+          </div>
+          <div>
+            <label class="block text-sm font-medium"
+              >Research & Innovation (satu link per baris, format:
+              Teks|URL)</label
+            ><textarea
+              id="footer-research"
+              rows="3"
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2"
+              placeholder="Contoh: Bandung Techno Park|https://btp.telkomuniversity.ac.id/"
+            ></textarea>
+          </div>
+          <div>
+            <label class="block text-sm font-medium"
+              >Contact Us (satu kontak per baris, format: Teks|URL)</label
+            ><textarea
+              id="footer-contact"
+              rows="3"
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2"
+              placeholder="indrarini@telkomuniversity.ac.id|mailto:indrarini@telkomuniversity.ac.id"
+            ></textarea>
+          </div>
+          <button
+            type="submit"
+            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+          >
+            Simpan Footer
+          </button>
+        </form>
+      </div>
+
+      <div
+        id="joinus-section"
+        class="bg-white p-6 rounded-lg shadow form-section"
+      >
+        <h2 class="text-xl font-bold mb-4 border-b pb-2">Link "Join Us!"</h2>
+        <form id="join-us-form" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium"
+              >URL untuk Tombol "Join Us!"</label
+            ><input
+              type="url"
+              id="join-us-link"
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2"
+              placeholder="https://example.com/join"
+            />
+          </div>
+          <button
+            type="submit"
+            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+          >
+            Simpan Link
+          </button>
+        </form>
+      </div>
+    </main>
+
+    <button id="go-to-top" title="Kembali ke atas">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class="h-6 w-6"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M5 11l7-7 7 7M12 4v18"
+        />
+      </svg>
+    </button>
+
+    <div
+      id="edit-modal"
+      class="fixed inset-0 z-50 hidden items-center justify-center"
+    >
+      <div
+        id="modal-backdrop"
+        class="absolute inset-0 bg-black modal-backdrop opacity-50"
+      ></div>
+      <div
+        id="modal-content"
+        class="relative bg-white rounded-lg shadow-xl w-full max-w-lg p-6 m-4 modal-content transform scale-95"
+      >
+        <h3 id="modal-title" class="text-2xl font-bold mb-4">Edit Item</h3>
+        <div id="modal-body" class="space-y-4"></div>
+        <div class="mt-6 flex justify-end space-x-3">
+          <button
+            id="modal-close-btn"
+            class="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400"
+          >
+            Batal
+          </button>
+          <button
+            id="modal-save-btn"
+            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            Simpan Perubahan
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-firestore-compat.js"></script>
+
+    <script src="admin.js"></script>
+  </body>
+</html>
