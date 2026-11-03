@@ -1,0 +1,350 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // This security rules file assumes the following data structures:
+    //
+    // Collection: siteContent
+    // Document ID: 'main' (or any site content configuration docId)
+    // Fields:
+    //   - heroTitle: string (optional, max 500 chars)
+    //   - heroDescription: string (optional, max 2000 chars)
+    //   - heroLeftImage: string (optional, max 2000 chars)
+    //   - heroRightImage: string (optional, max 2000 chars)
+    //   - heroRightText: string (optional, max 2000 chars)
+    //   - aboutTitle: string (optional, max 500 chars)
+    //   - aboutParagraph1: string (optional, max 10000 chars)
+    //   - aboutParagraph2: string (optional, max 10000 chars)
+    //   - stats: map (optional)
+    //       * partners: string (max 100 chars) or number
+    //       * projects: string (max 100 chars) or number
+    //       * increase: string (max 100 chars) or number
+    //       * members: string (max 100 chars) or number
+    //   - footer: map (optional)
+    //       * address: string (max 1000 chars)
+    //       * research: list of maps (max 50 items)
+    //       * contact: list of maps (max 50 items)
+    //   - joinUsLink: string (optional, max 2000 chars)
+    //   - createdAt: timestamp (optional)
+    //   - lastUpdated: timestamp (optional)
+    //
+    // Collection: researchInterests
+    // Document ID: auto-generated or slug
+    // Fields:
+    //   - title: string (required, 1-200 chars)
+    //   - iconLink: string (required, 1-2000 chars)
+    //   - createdAt: timestamp (optional on legacy read, immutable on update)
+    //
+    // Collection: newsAndEvents
+    // Document ID: auto-generated or slug
+    // Fields:
+    //   - title: string (required, 1-300 chars)
+    //   - date: string (required, 1-100 chars)
+    //   - summary: string (required, 0-2000 chars)
+    //   - content: string (required, 1-100000 chars)
+    //   - image: string (required, 1-2000 chars)
+    //   - createdAt: timestamp (optional on legacy read, immutable on update)
+    //
+    // Subcollection: newsAndEvents/{newsId}/comments
+    // Document ID: auto-generated
+    // Fields:
+    //   - name: string (required, 1-100 chars)
+    //   - email: string (required, 3-200 chars, valid email)
+    //   - text: string (required, 1-3000 chars)
+    //   - createdAt: timestamp (required, recent or server timestamp, immutable on update)
+    //
+    // Collection: projects
+    // Document ID: auto-generated or slug
+    // Fields:
+    //   - title: string (required, 1-200 chars)
+    //   - description: string (required, 1-10000 chars)
+    //   - link: string (optional, max 2000 chars)
+    //   - images: list of string (required, 1-30 items, each max 2000 chars)
+    //   - createdAt: timestamp (optional on legacy read, immutable on update)
+    //
+    // Collection: teamMembers
+    // Document ID: auto-generated or slug
+    // Fields:
+    //   - name: string (required, 1-100 chars)
+    //   - role: string (required, 1-100 chars, e.g. 'Mentor', 'Member')
+    //   - image: string (required, 1-2000 chars)
+    //   - createdAt: timestamp (optional on legacy read, immutable on update)
+    //
+    // Collection: analytics
+    // Document ID: 'traffic' (or any tracking docId)
+    // Fields:
+    //   - totalVisits: int (optional, non-negative, public increment delta <= 1)
+    //   - uniqueVisitors: int (optional, non-negative, public increment delta <= 1)
+    //   - totalUploads: int (optional, non-negative, public increment delta <= 5)
+    //   - totalDownloads: int (optional, non-negative, public increment delta <= 5)
+    //   - lastUpdated: timestamp (required, recent or server timestamp)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    // Check if the request is from an authenticated user
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Check if user has admin privileges
+    function isAdmin() {
+      return isAuthenticated();
+    }
+
+    // Validate email format
+    function isValidEmail(email) {
+      return email is string &&
+        email.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$');
+    }
+
+    // Validate that a timestamp is recent (within 5 minutes) or matches request.time
+    function isRecent(time) {
+      return time is timestamp &&
+        time > request.time - duration.value(5, 'm') &&
+        time <= request.time;
+    }
+
+    // Validate that specified fields are not changed during an update operation
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    // SiteContent Stats sub-map validator
+    function isValidSiteStats(stats) {
+      return stats is map &&
+        stats.keys().hasOnly(['partners', 'projects', 'increase', 'members']) &&
+        (!('partners' in stats) || ((stats.partners is string && stats.partners.size() <= 100) || stats.partners is number)) &&
+        (!('projects' in stats) || ((stats.projects is string && stats.projects.size() <= 100) || stats.projects is number)) &&
+        (!('increase' in stats) || ((stats.increase is string && stats.increase.size() <= 100) || stats.increase is number)) &&
+        (!('members' in stats) || ((stats.members is string && stats.members.size() <= 100) || stats.members is number));
+    }
+
+    // SiteContent Footer sub-map validator
+    function isValidSiteFooter(footer) {
+      return footer is map &&
+        footer.keys().hasOnly(['address', 'research', 'contact']) &&
+        (!('address' in footer) || (footer.address is string && footer.address.size() <= 1000)) &&
+        (!('research' in footer) || (footer.research is list && footer.research.size() <= 50)) &&
+        (!('contact' in footer) || (footer.contact is list && footer.contact.size() <= 50));
+    }
+
+    // SiteContent Validator
+    function isValidSiteContent(data) {
+      return data.keys().hasOnly([
+          'heroTitle', 'heroDescription', 'heroLeftImage', 'heroRightImage',
+          'heroRightText', 'aboutTitle', 'aboutParagraph1', 'aboutParagraph2',
+          'stats', 'footer', 'joinUsLink', 'createdAt', 'lastUpdated'
+        ]) &&
+        (!('heroTitle' in data) || (data.heroTitle is string && data.heroTitle.size() <= 500)) &&
+        (!('heroDescription' in data) || (data.heroDescription is string && data.heroDescription.size() <= 2000)) &&
+        (!('heroLeftImage' in data) || (data.heroLeftImage is string && data.heroLeftImage.size() <= 2000)) &&
+        (!('heroRightImage' in data) || (data.heroRightImage is string && data.heroRightImage.size() <= 2000)) &&
+        (!('heroRightText' in data) || (data.heroRightText is string && data.heroRightText.size() <= 2000)) &&
+        (!('aboutTitle' in data) || (data.aboutTitle is string && data.aboutTitle.size() <= 500)) &&
+        (!('aboutParagraph1' in data) || (data.aboutParagraph1 is string && data.aboutParagraph1.size() <= 10000)) &&
+        (!('aboutParagraph2' in data) || (data.aboutParagraph2 is string && data.aboutParagraph2.size() <= 10000)) &&
+        (!('joinUsLink' in data) || (data.joinUsLink is string && data.joinUsLink.size() <= 2000)) &&
+        (!('createdAt' in data) || data.createdAt is timestamp) &&
+        (!('lastUpdated' in data) || data.lastUpdated is timestamp) &&
+        (!('stats' in data) || isValidSiteStats(data.stats)) &&
+        (!('footer' in data) || isValidSiteFooter(data.footer));
+    }
+
+    // ResearchInterests Validator
+    function isValidResearchInterest(data) {
+      return data.keys().hasOnly(['title', 'iconLink', 'createdAt']) &&
+        data.keys().hasAll(['title', 'iconLink']) &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+        data.iconLink is string && data.iconLink.size() >= 1 && data.iconLink.size() <= 2000 &&
+        (!('createdAt' in data) || data.createdAt is timestamp);
+    }
+
+    // NewsAndEvents Validator
+    function isValidNewsItem(data) {
+      return data.keys().hasOnly(['title', 'date', 'summary', 'content', 'image', 'createdAt']) &&
+        data.keys().hasAll(['title', 'date', 'summary', 'content', 'image']) &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 300 &&
+        data.date is string && data.date.size() >= 1 && data.date.size() <= 100 &&
+        data.summary is string && data.summary.size() <= 2000 &&
+        data.content is string && data.content.size() >= 1 && data.content.size() <= 100000 &&
+        data.image is string && data.image.size() >= 1 && data.image.size() <= 2000 &&
+        (!('createdAt' in data) || data.createdAt is timestamp);
+    }
+
+    // Comments Validator
+    function isValidComment(data) {
+      return data.keys().hasOnly(['name', 'email', 'text', 'createdAt']) &&
+        data.keys().hasAll(['name', 'email', 'text', 'createdAt']) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 200 && isValidEmail(data.email) &&
+        data.text is string && data.text.size() >= 1 && data.text.size() <= 3000 &&
+        data.createdAt is timestamp;
+    }
+
+    // Projects Validator
+    function isValidProject(data) {
+      return data.keys().hasOnly(['title', 'description', 'link', 'images', 'createdAt']) &&
+        data.keys().hasAll(['title', 'description', 'images']) &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+        data.description is string && data.description.size() >= 1 && data.description.size() <= 10000 &&
+        (!('link' in data) || (data.link is string && data.link.size() <= 2000)) &&
+        data.images is list && data.images.size() >= 1 && data.images.size() <= 30 &&
+        (!('createdAt' in data) || data.createdAt is timestamp);
+    }
+
+    // TeamMembers Validator
+    function isValidTeamMember(data) {
+      return data.keys().hasOnly(['name', 'role', 'image', 'createdAt']) &&
+        data.keys().hasAll(['name', 'role', 'image']) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+        data.role is string && data.role.size() >= 1 && data.role.size() <= 100 &&
+        data.image is string && data.image.size() >= 1 && data.image.size() <= 2000 &&
+        (!('createdAt' in data) || data.createdAt is timestamp);
+    }
+
+    // Analytics Allowed Fields & Types Check
+    function isValidAnalyticsFields(data) {
+      return data.keys().hasOnly(['totalVisits', 'uniqueVisitors', 'totalUploads', 'totalDownloads', 'lastUpdated']) &&
+        (!('totalVisits' in data) || ((data.totalVisits is int || data.totalVisits is number) && data.totalVisits >= 0)) &&
+        (!('uniqueVisitors' in data) || ((data.uniqueVisitors is int || data.uniqueVisitors is number) && data.uniqueVisitors >= 0)) &&
+        (!('totalUploads' in data) || ((data.totalUploads is int || data.totalUploads is number) && data.totalUploads >= 0)) &&
+        (!('totalDownloads' in data) || ((data.totalDownloads is int || data.totalDownloads is number) && data.totalDownloads >= 0)) &&
+        (!('lastUpdated' in data) || data.lastUpdated is timestamp);
+    }
+
+    // Analytics Public Initial Document Creation Check
+    function isValidPublicAnalyticsCreate(data) {
+      return isValidAnalyticsFields(data) &&
+        'lastUpdated' in data &&
+        (data.lastUpdated == request.time || isRecent(data.lastUpdated)) &&
+        (!('totalVisits' in data) || ((data.totalVisits is int || data.totalVisits is number) && data.totalVisits >= 0 && data.totalVisits <= 1)) &&
+        (!('uniqueVisitors' in data) || ((data.uniqueVisitors is int || data.uniqueVisitors is number) && data.uniqueVisitors >= 0 && data.uniqueVisitors <= 1)) &&
+        (!('totalUploads' in data) || ((data.totalUploads is int || data.totalUploads is number) && data.totalUploads >= 0 && data.totalUploads <= 5)) &&
+        (!('totalDownloads' in data) || ((data.totalDownloads is int || data.totalDownloads is number) && data.totalDownloads >= 0 && data.totalDownloads <= 5));
+    }
+
+    // Analytics Public Counter Increment Update Check
+    function isValidPublicAnalyticsUpdate() {
+      let affected = request.resource.data.diff(resource.data).affectedKeys();
+      return isValidAnalyticsFields(request.resource.data) &&
+        affected.hasOnly(['totalVisits', 'uniqueVisitors', 'totalUploads', 'totalDownloads', 'lastUpdated']) &&
+        'lastUpdated' in affected &&
+        (request.resource.data.lastUpdated == request.time || isRecent(request.resource.data.lastUpdated)) &&
+        (!('totalVisits' in affected) || (
+          (request.resource.data.totalVisits is int || request.resource.data.totalVisits is number) &&
+          ('totalVisits' in resource.data
+            ? (request.resource.data.totalVisits >= resource.data.totalVisits &&
+               request.resource.data.totalVisits - resource.data.totalVisits <= 1)
+            : (request.resource.data.totalVisits >= 0 && request.resource.data.totalVisits <= 1))
+        )) &&
+        (!('uniqueVisitors' in affected) || (
+          (request.resource.data.uniqueVisitors is int || request.resource.data.uniqueVisitors is number) &&
+          ('uniqueVisitors' in resource.data
+            ? (request.resource.data.uniqueVisitors >= resource.data.uniqueVisitors &&
+               request.resource.data.uniqueVisitors - resource.data.uniqueVisitors <= 1)
+            : (request.resource.data.uniqueVisitors >= 0 && request.resource.data.uniqueVisitors <= 1))
+        )) &&
+        (!('totalUploads' in affected) || (
+          (request.resource.data.totalUploads is int || request.resource.data.totalUploads is number) &&
+          ('totalUploads' in resource.data
+            ? (request.resource.data.totalUploads >= resource.data.totalUploads &&
+               request.resource.data.totalUploads - resource.data.totalUploads <= 5)
+            : (request.resource.data.totalUploads >= 0 && request.resource.data.totalUploads <= 5))
+        )) &&
+        (!('totalDownloads' in affected) || (
+          (request.resource.data.totalDownloads is int || request.resource.data.totalDownloads is number) &&
+          ('totalDownloads' in resource.data
+            ? (request.resource.data.totalDownloads >= resource.data.totalDownloads &&
+               request.resource.data.totalDownloads - resource.data.totalDownloads <= 5)
+            : (request.resource.data.totalDownloads >= 0 && request.resource.data.totalDownloads <= 5))
+        ));
+    }
+
+    // ===============================================================
+    // Collection Match Rules
+    // ===============================================================
+
+    // 1. Site Content (main configuration and general page text)
+    match /siteContent/{docId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidSiteContent(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // 2. Research Interests
+    match /researchInterests/{docId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidResearchInterest(request.resource.data);
+      allow update: if isAdmin() && isValidResearchInterest(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['createdAt']);
+      allow delete: if isAdmin();
+    }
+
+    // 3. News and Events
+    match /newsAndEvents/{newsId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidNewsItem(request.resource.data);
+      allow update: if isAdmin() && isValidNewsItem(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['createdAt']);
+      allow delete: if isAdmin();
+
+      // 4. Comments subcollection for news items
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if (isAdmin() && isValidComment(request.resource.data)) ||
+                         (
+                           isValidComment(request.resource.data) &&
+                           (request.resource.data.createdAt == request.time || isRecent(request.resource.data.createdAt)) &&
+                           exists(/databases/$(database)/documents/newsAndEvents/$(newsId))
+                         );
+        allow update: if isAdmin() && isValidComment(request.resource.data) &&
+                      areImmutableFieldsUnchanged(['createdAt']);
+        allow delete: if isAdmin();
+      }
+    }
+
+    // 5. Projects
+    match /projects/{projectId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidProject(request.resource.data);
+      allow update: if isAdmin() && isValidProject(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['createdAt']);
+      allow delete: if isAdmin();
+    }
+
+    // 6. Team Members
+    match /teamMembers/{memberId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidTeamMember(request.resource.data);
+      allow update: if isAdmin() && isValidTeamMember(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['createdAt']);
+      allow delete: if isAdmin();
+    }
+
+    // 7. Analytics (traffic & visitor counter increments)
+    match /analytics/{docId} {
+      allow read: if true;
+      allow create: if isAdmin() || isValidPublicAnalyticsCreate(request.resource.data);
+      allow update: if isAdmin() || isValidPublicAnalyticsUpdate();
+      allow delete: if isAdmin();
+    }
+
+    // 8. Default deny for all other paths and collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
