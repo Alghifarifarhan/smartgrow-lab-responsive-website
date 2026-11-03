@@ -180,25 +180,6 @@ npm run start
 
 ---
 
-## 🚢 Deployment ke Firebase Hosting
-
-Untuk merilis website ke Firebase Hosting:
-
-1. Pastikan Firebase CLI telah terpasang:
-   ```bash
-   npm install -g firebase-tools
-   ```
-2. Login ke akun Google Anda:
-   ```bash
-   firebase login
-   ```
-3. Deploy Firestore Security Rules dan Web:
-   ```bash
-   firebase deploy --only firestore:rules
-   ```
-
----
-
 ## 👥 Kontributor
 
 * **Smart Grow Laboratory Team** — Bandung Techno Park
